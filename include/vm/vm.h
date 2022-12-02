@@ -69,6 +69,7 @@ struct page
 /* The representation of "frame" */
 struct frame
 {
+	// kva => struct frame 안에 왜 커널 가상 주소가 멤버로 들어있는지?
 	void *kva;
 	struct page *page;
 };

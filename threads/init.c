@@ -86,6 +86,7 @@ int main(void)
 
 	/* Initialize memory system. */
 	/* 메모리 시스템 초기화 */
+	/* Pintos의 물리 메모리 크기는 256MB이다. */
 	mem_end = palloc_init(); /* 페이지 할당기를 초기화한 후, 메모리 사이즈를 반환 */
 	malloc_init();			 /* malloc()을 통한 메모리 할당을 수행하기 위해 초기화 */
 	paging_init(mem_end);

@@ -7,7 +7,7 @@
 #include "intrinsic.h"
 #include "userprog/syscall.h"
 
-/* Number of page faults processed. */
+/* Number of page faults processed. page_fault_cnt => 처리된 페이지 폴트의 수를 세는 변수 */
 static long long page_fault_cnt;
 
 static void kill(struct intr_frame *);
@@ -157,6 +157,8 @@ page_fault(struct intr_frame *f)
 
 #ifdef VM
 	/* For project 3 and later. */
+	/* userprog/exception.c의 page_fault()는 vm/vm.c에 있는 당신이 구현한 vm_try_handle_fault()를 호출한다. */
+	/* 1. SPT에서 페이지 폴트가 발생한 페이지를 찾는다. 메모리 참조가 유효하면 SPTE(SPT Entry)에 페이지에 들어갈 데이터를 찾는다. */
 	if (vm_try_handle_fault(f, fault_addr, user, write, not_present))
 		return;
 #endif
@@ -170,12 +172,6 @@ page_fault(struct intr_frame *f)
 		   not_present ? "not present" : "rights violation",
 		   write ? "writing" : "reading",
 		   user ? "user" : "kernel");
-
-	// if (user)
-	// {
-	// 	thread_current()->exit_status = -1;
-	// 	thread_exit();
-	// }
 
 	kill(f);
 }
