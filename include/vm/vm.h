@@ -42,6 +42,8 @@ struct thread;
 #define VM_TYPE(type) ((type)&7)
 
 /* The representation of "page".
+   가상 메모리에서의 페이지를 의미하는 구조체 !
+   이 구조체는 page에 대해 우리가 알아야 하는 모든 필요한 정보들을 담고 있다 !
  * This is kind of "parent class", which has four "child class"es, which are
  * uninit_page, file_page, anon_page, and page cache (project4).
  * DO NOT REMOVE/MODIFY PREDEFINED MEMBER OF THIS STRUCTURE. => 구조체 수정하지 말 것!!! */
@@ -54,7 +56,8 @@ struct page
 	/* Your implementation */
 
 	/* Per-type data are binded into the union.
-	 * Each function automatically detects the current union */
+	 * Each function automatically detects the current union
+	메모리 공간을 공유하기 때문에 유니온은 멤버 변수를 한 번에 하나씩만 사용할 수 있다. */
 	union
 	{
 		struct uninit_page uninit;
@@ -71,7 +74,7 @@ struct frame
 {
 	// kva => struct frame 안에 왜 커널 가상 주소가 멤버로 들어있는지?
 	void *kva;
-	struct page *page;
+	8 struct page *page;
 };
 
 /* The function table for page operations.

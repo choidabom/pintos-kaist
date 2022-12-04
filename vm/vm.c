@@ -63,7 +63,8 @@ err:
 	return false;
 }
 
-/* Find VA from spt and return page. On error, return NULL. */
+/* Find VA from spt and return page. On error, return NULL.
+=> 함수의 인자로 넘겨진 SPT에서로부터 가상 주소(VA)와 대응되는 페이지 구조체를 찾아서 반환한다. */
 struct page *
 spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
 {
@@ -73,7 +74,8 @@ spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
 	return page;
 }
 
-/* Insert PAGE into spt with validation. */
+/* Insert PAGE into spt with validation.
+=> 함수의 인자로 넘겨진 SPT에 페이지 구조체를 삽입한다. SPT에 가상주소(Virtual Address)가 존재하지 않는지 검사해야 한다. */
 bool spt_insert_page(struct supplemental_page_table *spt UNUSED,
 					 struct page *page UNUSED)
 {
@@ -181,17 +183,16 @@ vm_do_claim_page(struct page *page)
 	return swap_in(page, frame->kva);
 }
 
-/* Initialize new supplemental page table */
+/* Initialize new supplemental page table
+ supplemental page table을 초기화한다. userprog/process.c의 initd 함수로 새로운 프로세스가 시작하거나 process.c의 __do_fork로 자식 프로세스가 생성될 때 위의 함수가 호출된다.  */
 void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED)
 {
-
 }
 
 /* Copy supplemental page table from src to dst */
 bool supplemental_page_table_copy(struct supplemental_page_table *dst UNUSED,
 								  struct supplemental_page_table *src UNUSED)
 {
-	
 }
 
 /* Free the resource hold by the supplemental page table */
