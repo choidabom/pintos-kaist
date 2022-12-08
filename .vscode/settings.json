@@ -15,6 +15,7 @@
     "mmu.h": "c",
     "vaddr.h": "c",
     "flags.h": "c",
-    "pte.h": "c"
+    "pte.h": "c",
+    "hash.h": "c"
   }
 }

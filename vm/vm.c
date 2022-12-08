@@ -122,8 +122,8 @@ vm_get_frame(void)
 	struct frame *frame = NULL;
 	/* TODO: Fill this function. */
 
-	ASSERT(frame != NULL);
-	ASSERT(frame->page == NULL);
+	ASSERT(frame != NULL);		 // 유저풀에서 잘 가져왔는지 확인
+	ASSERT(frame->page == NULL); // 어떤 page도 맵핑되어 있지 않아야 함
 	return frame;
 }
 
@@ -147,8 +147,13 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	struct page *page = NULL;
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
-
-	return vm_do_claim_page(page);
+	/*
+	1. 보조 페이지 테이블에서 폴트가 발생한 페이지를 찾는다. -> spt_find_page (구현해야함)
+	2. 만일 메모리 참조가 유효하다면 보조 페이지 엔트리를 사용해서 페이지에 들어가는 데이터를 찾는다.
+	3. 페이지를 저장하기 위해 프레임을 획득
+	4. 데이터를 파일 시스템이나 스왑에서 읽어오거나, 0으로 초기화하는 등의 방식으로 만들어서 프레임으로 가져온다.
+	5. 가상주소에 대한 페이지 테이블 엔트리가 물리 페이지를 가리키도록 지정한다. => vm_do_claim_page */
+	return vm_do_claim_page(page); // vm(page) -> RAM(frame)의 연결관계가 설정되어 있지 않아 page fault가 발생할 때 이 연결관계를 설정하여 준다.
 }
 
 /* Free the page.
