@@ -8,6 +8,7 @@
 #include "hash.h"
 #include "../debug.h"
 #include "threads/malloc.h"
+#include "vm/vm.h"
 
 #define list_elem_to_hash_elem(LIST_ELEM) \
 	list_entry(LIST_ELEM, struct hash_elem, list_elem)
@@ -314,6 +315,7 @@ find_elem(struct hash *h, struct list *bucket, struct hash_elem *e)
 	{
 		struct hash_elem *hi = list_elem_to_hash_elem(i);
 		if (!h->less(hi, e, h->aux) && !h->less(e, hi, h->aux))
+			// 버킷의 i번째 해시가, 인자로 들어온 e와 대소비교를 했을 때 작지도 크지도 않다면, 같다고 보고(?) hi를 리턴해라
 			return hi;
 	}
 	return NULL;
@@ -420,4 +422,21 @@ remove_elem(struct hash *h, struct hash_elem *e)
 {
 	h->elem_cnt--;
 	list_remove(&e->list_elem);
+}
+
+/* Returns a hash value for page p. => 페이지 p에 대한 해시 값을 반환합니다. => page_hash 자체가 해시 함수이다 !! */
+unsigned
+page_hash(const struct hash_elem *p_, void *aux UNUSED)
+{
+	const struct page *p = hash_entry(p_, struct page, hash_elem);
+	return hash_bytes(&p->va, sizeof p->va);
+}
+
+/* Returns true if page a precedes page b.=> 페이지 a가 페이지 b 앞에 있으면 true를 반환합니다. => 해시 테이블 내 순서를 비교하는 함수 !! */
+bool page_less(const struct hash_elem *a_, const struct hash_elem *b_, void *aux)
+{
+	const struct page *a = hash_entry(a_, struct page, hash_elem);
+	const struct page *b = hash_entry(b_, struct page, hash_elem);
+
+	return a->va < b->va;
 }
