@@ -132,6 +132,7 @@ page_fault(struct intr_frame *f)
 	   data.  It is not necessarily the address of the instruction
 	   that caused the fault (that's f->rip). */
 
+	// 페이지 폴트 발생 시 CPU에 의해 자동으로 설정되는 CR2 레지스터는 접근돼서 페이지 폴트를 발생시킨 가상 주소를 담고 있다.
 	fault_addr = (void *)rcr2();
 
 	/* Turn interrupts back on (they were only off so that we could
@@ -144,7 +145,7 @@ page_fault(struct intr_frame *f)
 	user = (f->error_code & PF_U) != 0;
 	// 0 => 커널, 1 => 유저 프로세스
 
-	if (user)
+	if (user || write || not_present)
 	{
 		f->R.rdi = -1;
 		exit_handler(f->R.rdi);
@@ -173,5 +174,6 @@ page_fault(struct intr_frame *f)
 		   write ? "writing" : "reading",
 		   user ? "user" : "kernel");
 
-	kill(f);
+	exit_handler(-1);
+	// kill(f);
 }
