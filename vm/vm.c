@@ -68,10 +68,11 @@ err:
 struct page *
 spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
 {
-	struct page *page = NULL;
+	/* 지역변수 page를 만들어서 인자로 받은 va를 넣어줘. 일단 구색을 맞춰주는 것임 ! */
+	struct page p;
 	/* TODO: Fill this function. */
-
-	return page;
+	/* */
+	// return page;
 }
 
 /* Insert PAGE into spt with validation.
@@ -138,6 +139,18 @@ static bool
 vm_handle_wp(struct page *page UNUSED)
 {
 }
+/*
+	(https://casys-kaist.github.io/pintos-kaist/project3/introduction.html)
+	현재 핀토스는 page fault 발생 시 프로세스를 kill한다.
+	하지만 이제 page fault가 발생하면 물리디스크를 탐색하여 page frame을 할당해야 한다.
+
+	1. 유효한 주소라면:
+	메모리에 존재하지 않는다면(not-present) spt를 탐색해 해당 주소에 들어가야 할 컨텐츠를 물리 메모리에서 찾아서 해당 데이터를 가져온다
+	또는 파일에서 읽어와야 하는 데이터이거나 스왑 영역에서 가져와야 하는 데이터이거나 아니면 그냥 새로운 페이지를 할당해야 되는 경우일 수 있다.(all-zero page)
+
+	2. 유효한 주소가 아니라면:
+	커널 주소거나 유효한 유저주소가 아니거나 적절한 permission이 없다면 프로세스를 kill한다.
+*/
 
 /* Return true on success */
 bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
@@ -192,6 +205,9 @@ vm_do_claim_page(struct page *page)
  supplemental page table을 초기화한다. userprog/process.c의 initd 함수로 새로운 프로세스가 시작하거나 process.c의 __do_fork로 자식 프로세스가 생성될 때 위의 함수가 호출된다.  */
 void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED)
 {
+	/* SPT 안에다가 해시 테이블을 만들었기 때문에 다음과 같이 작성 !!
+	=> &spt->spt_hash_table */
+	hash_init(&spt->spt_hash_table, page_hash, page_less, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
