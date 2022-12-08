@@ -16,6 +16,7 @@
     "vaddr.h": "c",
     "flags.h": "c",
     "pte.h": "c",
-    "hash.h": "c"
+    "hash.h": "c",
+    "vm.h": "c"
   }
 }
