@@ -3,6 +3,9 @@
 #include "threads/malloc.h"
 #include "vm/vm.h"
 #include "vm/inspect.h"
+#include "include/lib/kernel/hash.h"
+#include "include/threads/vaddr.h"
+#include <string.h>
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -66,28 +69,40 @@ err:
 /* Find VA from spt and return page. On error, return NULL.
 => 함수의 인자로 넘겨진 SPT에서로부터 가상 주소(VA)와 대응되는 페이지 구조체를 찾아서 반환한다. */
 struct page *
-spt_find_page(struct supplemental_page_table *spt UNUSED, void *va UNUSED)
+spt_find_page(struct supplemental_page_table *spt, void *va)
 {
+	/* TODO: Fill this function. */
 	/* 지역변수 page를 만들어서 인자로 받은 va를 넣어줘. 일단 구색을 맞춰주는 것임 ! */
 	struct page p;
-	/* TODO: Fill this function. */
-	/* */
-	// return page;
+	struct hash_elem *e;
+
+	p.va = pg_round_down(va);
+	e = hash_find(&spt->hash_table, &p.hash_elem);
+	if (e == NULL)
+		return NULL;
+	struct page *result = hash_entry(e, struct page, hash_elem);
+
+	// VA가 결과로 받은 page의 virtual address 범위에 들어가는지 검증. 0~4kb
+	ASSERT((va < result->va + PGSIZE) && va >= result->va);
+
+	return result;
 }
 
 /* Insert PAGE into spt with validation.
 => 함수의 인자로 넘겨진 SPT에 페이지 구조체를 삽입한다. SPT에 가상주소(Virtual Address)가 존재하지 않는지 검사해야 한다. */
-bool spt_insert_page(struct supplemental_page_table *spt UNUSED,
-					 struct page *page UNUSED)
+bool spt_insert_page(struct supplemental_page_table *spt,
+					 struct page *page)
 {
-	int succ = false;
 	/* TODO: Fill this function. */
+	/* hash_insert => 이미 값이 있으면 있는 값(hash_elem)을 반환, 값이 없으면 hash table에 새로운 항목을 넣고 null pointer 반환 */
+	struct hash_elem *found_elem = hash_insert(&spt->hash_table, &page->hash_elem);
 
-	return succ;
+	return (found_elem == NULL) ? true : false;
 }
 
 void spt_remove_page(struct supplemental_page_table *spt, struct page *page)
 {
+	// struct hash_elem *remove_elem = hash_delete(&spt->hash_table, &page->hash_elem);
 	vm_dealloc_page(page);
 	return true;
 }
@@ -121,10 +136,18 @@ static struct frame *
 vm_get_frame(void)
 {
 	struct frame *frame = NULL;
-	/* TODO: Fill this function. */
+	/* palloc_get_page를 통해 유저풀에서 새로운 물리 페이지를 할당 받음 */
+	frame->kva = palloc_get_page(PAL_USER);
 
+	if (frame == NULL || frame->kva == NULL)
+	{
+		PANIC("todo");
+	}
+
+	/*  모든 유저 스페이스의 페이지들을 이 함수를 통해 할당 받아야 한다. */
 	ASSERT(frame != NULL);		 // 유저풀에서 잘 가져왔는지 확인
 	ASSERT(frame->page == NULL); // 어떤 page도 맵핑되어 있지 않아야 함
+
 	return frame;
 }
 
@@ -153,8 +176,8 @@ vm_handle_wp(struct page *page UNUSED)
 */
 
 /* Return true on success */
-bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
-						 bool user UNUSED, bool write UNUSED, bool not_present UNUSED)
+bool vm_try_handle_fault(struct intr_frame *f, void *addr,
+						 bool user, bool write, bool not_present)
 {
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
 	struct page *page = NULL;
@@ -166,6 +189,7 @@ bool vm_try_handle_fault(struct intr_frame *f UNUSED, void *addr UNUSED,
 	3. 페이지를 저장하기 위해 프레임을 획득
 	4. 데이터를 파일 시스템이나 스왑에서 읽어오거나, 0으로 초기화하는 등의 방식으로 만들어서 프레임으로 가져온다.
 	5. 가상주소에 대한 페이지 테이블 엔트리가 물리 페이지를 가리키도록 지정한다. => vm_do_claim_page */
+
 	return vm_do_claim_page(page); // vm(page) -> RAM(frame)의 연결관계가 설정되어 있지 않아 page fault가 발생할 때 이 연결관계를 설정하여 준다.
 }
 
@@ -187,6 +211,7 @@ bool vm_claim_page(void *va UNUSED)
 }
 
 /* Claim the PAGE and set up the mmu. */
+/* page claim => 물리 프레임을 할당받는 것을 말함. */
 static bool
 vm_do_claim_page(struct page *page)
 {
@@ -197,7 +222,10 @@ vm_do_claim_page(struct page *page)
 	page->frame = frame;
 
 	/* TODO: Insert page table entry to map page's VA to frame's PA. */
-
+	if (!pml4_set_page(thread_current()->pml4, page->va, frame->kva, page->writable))
+	{
+		return false;
+	}
 	return swap_in(page, frame->kva);
 }
 
@@ -206,8 +234,10 @@ vm_do_claim_page(struct page *page)
 void supplemental_page_table_init(struct supplemental_page_table *spt UNUSED)
 {
 	/* SPT 안에다가 해시 테이블을 만들었기 때문에 다음과 같이 작성 !!
-	=> &spt->spt_hash_table */
-	hash_init(&spt->spt_hash_table, page_hash, page_less, NULL);
+		hash 인자 => &spt->hash_table */
+	/* hash_hash_func 인자 => page_hash: "해시함수"가 들어감  */
+	/* hash_less_func 인자 => page_less: 해시끼리의 가상주소를 비교하는 함수*/
+	hash_init(&spt->hash_table, page_hash, page_less, NULL);
 }
 
 /* Copy supplemental page table from src to dst */
