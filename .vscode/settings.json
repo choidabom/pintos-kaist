@@ -17,6 +17,7 @@
     "flags.h": "c",
     "pte.h": "c",
     "hash.h": "c",
-    "vm.h": "c"
+    "vm.h": "c",
+    "inspect.h": "c"
   }
 }

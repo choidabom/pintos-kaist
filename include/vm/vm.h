@@ -56,6 +56,7 @@ struct page
 
 	/* Your implementation */
 	struct hash_elem hash_elem; /* Hash table element */
+	bool writable;				/* True일 경우 해당 주소에 write 가능, False일 경우 해당 주소에 write 불가능  */
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union
@@ -103,7 +104,7 @@ struct page_operations
 struct supplemental_page_table
 {
 	/* struct hash를 선언해줌으로써 해쉬 테이블이 하나 생긴 것 !! */
-	struct hash spt_hash_table;
+	struct hash hash_table;
 };
 
 #include "threads/thread.h"

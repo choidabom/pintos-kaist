@@ -93,6 +93,7 @@ void hash_destroy(struct hash *h, hash_action_func *destructor)
    no equal element is already in the table.
    If an equal element is already in the table, returns it
    without inserting NEW. */
+/* 이미 값이 있으면 있는 값을 반환, 값이 없으면 hash table에 새로운 항목을 넣고 null pointer 반환 */
 struct hash_elem *
 hash_insert(struct hash *h, struct hash_elem *new)
 {
@@ -126,6 +127,7 @@ hash_replace(struct hash *h, struct hash_elem *new)
 
 /* Finds and returns an element equal to E in hash table H, or a
    null pointer if no equal element exists in the table. */
+/* find_elem을 이용해서 해시테이블에서 hash_elem을 얻어온다. */
 struct hash_elem *
 hash_find(struct hash *h, struct hash_elem *e)
 {
