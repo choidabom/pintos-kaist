@@ -50,6 +50,10 @@ process_init(void)
  * before process_create_initd() returns. Returns the initd's
  * thread id, or TID_ERROR if the thread cannot be created.
  * Notice that THIS SHOULD BE CALLED ONCE. */
+/* FILE_NAME에서 로드된 "initd"라는 첫 번째 사용자 영역 프로그램을 시작합니다.
+process_create_initd()가 반환되기 전에 새 스레드가 스케줄 될 수 있으며 심지어 종료될 수도 있습니다.
+initd의 스레드 ID를 반환하거나 스레드를 생성할 수 없는 경우 TID_ERROR를 반환합니다.
+이것은 한 번만 호출되어야 합니다.!!!!*/
 tid_t process_create_initd(const char *file_name)
 {
 	char *fn_copy;
@@ -72,6 +76,7 @@ tid_t process_create_initd(const char *file_name)
 	strtok_r(file_name, " ", &save);
 
 	/* Create a new thread to execute FILE_NAME. */
+	/* thread_create를 호출하며 새로운 kernel 스레드를 생성한다. 이 kernel 스레드는 initd() 함수를 thread_routine으로 가지는 스레드로, 생성 후 ready list에 들어간 뒤, running thread가 되는 시점에 initd()를 실행한다. initd()를 실행할 때, fn_copy를 인자로 전달한다. */
 	tid = thread_create(file_name, PRI_DEFAULT, initd, fn_copy);
 	if (tid == TID_ERROR)
 		palloc_free_page(fn_copy);
@@ -79,6 +84,7 @@ tid_t process_create_initd(const char *file_name)
 }
 
 /* A thread function that launches first user process. */
+/* 첫 유저 프로세스를 실행시키는 thread routine func */
 static void
 initd(void *f_name)
 {
@@ -483,6 +489,7 @@ load(const char *file_name, struct intr_frame *if_)
 	off_t file_ofs;
 	bool success = false;
 
+	/* Project 2 필요 변수 선언부 */
 	int i, j;
 	char *next_ptr;
 	char *process_name;
@@ -498,18 +505,21 @@ load(const char *file_name, struct intr_frame *if_)
 		goto done;
 	process_activate(thread_current());
 
+	/* Project 2: process_name 분리해주고, token_argv 함수에도 넣어줌 */
 	process_name = strtok_r(file_name, DELIM_CHARS, &next_ptr);
 	token_argv[argc] = process_name;
 
 	while (token != NULL)
 	{
-		// 인자(token) 분리해주는 과정 & argc 구하기
+		/* 인자(token) 분리해주는 과정 & argc 구하기 */
 		argc++;
 		token = strtok_r(NULL, DELIM_CHARS, &next_ptr);
 		token_argv[argc] = token;
 	}
 
 	/* Open executable file. */
+	/* file => 디스크에 있는 process_name과 이름이 일치하는 파일을 가져온 것 / file은 ELF 파일 */
+	/* 핀토스나 리눅스에서의 실행 파일은 ELF (포맷의) 파일이다. */
 	file = filesys_open(process_name);
 	if (file == NULL)
 	{
@@ -517,7 +527,10 @@ load(const char *file_name, struct intr_frame *if_)
 		goto done;
 	}
 
+	/* ELF 파일을 1개의 ELF 헤더(ELF64_hdr)와 파일 데이터(프로그램 헤더 테이블 + 섹션 헤더 테이블)로 구성되어 있음 */
+
 	/* Read and verify executable header. */
+	/* ELF 헤더의 크기만큼을 ehdr에 읽은 후, 정상적인지 확인한다. */
 	if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\2\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 0x3E // amd64
 		|| ehdr.e_version != 1 || ehdr.e_phentsize != sizeof(struct Phdr) || ehdr.e_phnum > 1024)
 	{
@@ -529,18 +542,22 @@ load(const char *file_name, struct intr_frame *if_)
 	file_deny_write(file);
 
 	/* Read program headers. */
-	file_ofs = ehdr.e_phoff;
-	for (i = 0; i < ehdr.e_phnum; i++)
+
+	file_ofs = ehdr.e_phoff; /* file_ofs을 프로그램 헤더 테이블 시작점으로 설정해주는 부분 => 이제 파일을 읽으면 프로그램 헤더 테이블 */
+
+	for (i = 0; i < ehdr.e_phnum; i++) /* e_phnum => 프로그램 엔트리의 개수, 엔트리의 개수만큼 for문을 돈다.  */
 	{
 		struct Phdr phdr;
 
 		if (file_ofs < 0 || file_ofs > file_length(file))
 			goto done;
-		file_seek(file, file_ofs);
+		file_seek(file, file_ofs); /* file의 pos를 file_ofs로 변경 */
 
-		if (file_read(file, &phdr, sizeof phdr) != sizeof phdr)
+		if (file_read(file, &phdr, sizeof phdr) != sizeof phdr) /* */
 			goto done;
-		file_ofs += sizeof phdr;
+		file_ofs += sizeof phdr; /* 순회하기 위해 file_ofs을 갱신 */
+
+		/* phdr 하나씩 순회하면서 type 확인.  */
 		switch (phdr.p_type)
 		{
 		case PT_NULL:
@@ -554,19 +571,21 @@ load(const char *file_name, struct intr_frame *if_)
 		case PT_INTERP:
 		case PT_SHLIB:
 			goto done;
+		/* phdr의 p_type이 PT_LOAD인 경우 아래를 실행!! PT_LOAD => 로드 가능한 세그먼트라는 것을 의미 */
 		case PT_LOAD:
 			if (validate_segment(&phdr, file))
 			{
 				bool writable = (phdr.p_flags & PF_W) != 0;
-				uint64_t file_page = phdr.p_offset & ~PGMASK;
-				uint64_t mem_page = phdr.p_vaddr & ~PGMASK;
-				uint64_t page_offset = phdr.p_vaddr & PGMASK;
+				uint64_t file_page = phdr.p_offset & ~PGMASK; /* 밑 12bit 버림 => 일단 page 단위를 맞춰준단고 생각 */
+				uint64_t mem_page = phdr.p_vaddr & ~PGMASK;	  /* 밑 12bit 버림 => 이 가상주소가 가리키는 page의 시작점이라는 것 */
+				uint64_t page_offset = phdr.p_vaddr & PGMASK; /* 밑 12bit만 살림 => 그 page 내에서 몇 번째 줄이냐만 보는 것 !! */
 				uint32_t read_bytes, zero_bytes;
 				if (phdr.p_filesz > 0)
 				{
 					/* Normal segment.
 					 * Read initial part from disk and zero the rest. */
 					read_bytes = page_offset + phdr.p_filesz;
+					/* 결국에는 page 사이즈로 올려주는 것 => ROUND_UP */
 					zero_bytes = (ROUND_UP(page_offset + phdr.p_memsz, PGSIZE) - read_bytes);
 				}
 				else
