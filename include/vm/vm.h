@@ -57,6 +57,8 @@ struct page
 	/* Your implementation */
 	struct hash_elem hash_elem; /* Hash table element */
 	bool writable;				/* True일 경우 해당 주소에 write 가능, False일 경우 해당 주소에 write 불가능  */
+	/* setup_stack에서 활용하기 위함 / marker까지 저장하기 위함 */
+	enum vm_type full_type; /* vm_type with markers */
 
 	/* Per-type data are binded into the union.
 	 * Each function automatically detects the current union
