@@ -145,6 +145,15 @@ page_fault(struct intr_frame *f)
 	user = (f->error_code & PF_U) != 0;
 	// 0 => 커널, 1 => 유저 프로세스
 
+#ifdef VM
+	/* For project 3 and later. */
+	/* userprog/exception.c의 page_fault()는 vm/vm.c에 있는 당신이 구현한 vm_try_handle_fault()를 호출한다. */
+	/* 1. SPT에서 페이지 폴트가 발생한 페이지를 찾는다. 메모리 참조가 유효하면 SPTE(SPT Entry)에 페이지에 들어갈 데이터를 찾는다. */
+	if (vm_try_handle_fault(f, fault_addr, user, write, not_present))
+		return;
+#endif
+
+	/* 페이지 폴트 이후 상황 (죽거나 or 가짜페이지폴트라서 lazyloading 해주거나 )*/
 	if (user || write || not_present)
 	{
 		f->R.rdi = -1;
@@ -155,15 +164,6 @@ page_fault(struct intr_frame *f)
 	// stack pointer가 가리키는 주소에서 page fault가 발생할 경우, exit() 시스템 콜을 호출하여 실행중인 프로세스를 종료하도록 한다.
 	// 구체적인 사항은 나중에 프로젝트 3에서 확인하자...
 	// page fault - 유저영역의 주소이지만 물리 메모리에 존재하지 않을 경우.
-
-#ifdef VM
-	/* For project 3 and later. */
-	/* userprog/exception.c의 page_fault()는 vm/vm.c에 있는 당신이 구현한 vm_try_handle_fault()를 호출한다. */
-	/* 1. SPT에서 페이지 폴트가 발생한 페이지를 찾는다. 메모리 참조가 유효하면 SPTE(SPT Entry)에 페이지에 들어갈 데이터를 찾는다. */
-	if (vm_try_handle_fault(f, fault_addr, user, write, not_present))
-		return;
-#endif
-
 	/* Count page faults. */
 	page_fault_cnt++;
 
