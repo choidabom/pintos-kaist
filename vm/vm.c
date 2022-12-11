@@ -6,6 +6,7 @@
 #include "include/lib/kernel/hash.h"
 #include "include/threads/vaddr.h"
 #include <string.h>
+#include "userprog/process.h"
 
 /* Initializes the virtual memory subsystem by invoking each subsystem's
  * intialize codes. */
@@ -86,8 +87,9 @@ bool vm_alloc_page_with_initializer(enum vm_type type, void *upage, bool writabl
 		/* 이 page는 인자로 들어온 타입으로 초기화가 된 상태가 아니다.
 		=> page fault가 뜨면 해당 타입의 초기화 함수를 호출하여 초기화 한다.!*/
 		bool result = spt_insert_page(spt, page);
-		struct page *result = spt_find_page(spt, upage);
-		if (result == NULL)
+		struct page *result_page = spt_find_page(spt, upage);
+
+		if (result_page == NULL)
 		{
 			goto err;
 		}
@@ -221,7 +223,7 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 						 bool user, bool write, bool not_present)
 {
 	struct supplemental_page_table *spt UNUSED = &thread_current()->spt;
-	struct page *page = NULL;
+	struct page *page = spt_find_page(spt, addr);
 	/* TODO: Validate the fault */
 	/* TODO: Your code goes here */
 	/*
@@ -230,7 +232,10 @@ bool vm_try_handle_fault(struct intr_frame *f, void *addr,
 	3. 페이지를 저장하기 위해 프레임을 획득
 	4. 데이터를 파일 시스템이나 스왑에서 읽어오거나, 0으로 초기화하는 등의 방식으로 만들어서 프레임으로 가져온다.
 	5. 가상주소에 대한 페이지 테이블 엔트리가 물리 페이지를 가리키도록 지정한다. => vm_do_claim_page */
-
+	if (page == NULL)
+	{
+		return false;
+	}
 	return vm_do_claim_page(page); // vm(page) -> RAM(frame)의 연결관계가 설정되어 있지 않아 page fault가 발생할 때 이 연결관계를 설정하여 준다.
 }
 
@@ -246,7 +251,7 @@ void vm_dealloc_page(struct page *page)
  * 가상주소에 존재하는 페이지를 spt에서 찾은 후 물리메모리 할당 후 매핑 (do_claim)*/
 bool vm_claim_page(void *va UNUSED)
 {
-	struct page *page = spt_find_page(&thread_current()->spt, page);
+	struct page *page = spt_find_page(&thread_current()->spt, va);
 	if (page == NULL)
 	{
 		return false;

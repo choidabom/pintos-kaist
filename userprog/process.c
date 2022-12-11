@@ -305,7 +305,7 @@ int process_exec(void *f_name)
 	process_cleanup();
 
 	/* And then load the binary */
-
+	//!!!! 로드 과정에서 문제 생긴 상태 (success가 0임 )
 	success = load(f_name, &_if);
 
 	// hex_dump(_if.rsp, _if.rsp, USER_STACK - _if.rsp, true);
@@ -595,6 +595,7 @@ load(const char *file_name, struct intr_frame *if_)
 					read_bytes = 0;
 					zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
 				}
+
 				if (!load_segment(file, file_page, (void *)mem_page,
 								  read_bytes, zero_bytes, writable))
 					goto done;
@@ -604,10 +605,12 @@ load(const char *file_name, struct intr_frame *if_)
 			break;
 		}
 	}
-
 	/* Set up stack. */
 	if (!setup_stack(if_))
+	{
+		printf("setup_stack 여기 빠졌냐? \n");
 		goto done;
+	}
 
 	/* Start address. */
 	if_->rip = ehdr.e_entry;
@@ -650,9 +653,9 @@ load(const char *file_name, struct intr_frame *if_)
 	if_->R.rsi = stack_ptr + 8;
 	if_->R.rdi = argc;
 	success = true;
+
 done:
 	/* We arrive here whether the load is successful or not. */
-
 	// file_close(file);
 	return success;
 }
@@ -813,11 +816,27 @@ install_page(void *upage, void *kpage, bool writable)
  * upper block. */
 
 static bool
-lazy_load_segment(struct page *page, void *aux)
+lazy_load_segment(struct page *page, struct load_aux *aux)
 {
 	/* TODO: Load the segment from the file */
 	/* TODO: This called when the first page fault occurs on address VA. */
 	/* TODO: VA is available when calling this function. */
+	/* Load this page. */
+	struct file *file = aux->file;
+	off_t ofs = aux->ofs;
+	uint8_t *va = aux->va;
+	bool writable = aux->writable;
+	size_t page_read_bytes = aux->page_read_bytes;
+	size_t page_zero_bytes = aux->page_zero_bytes;
+
+	file_seek(file, ofs); /* file의 포지션이 ofs으로 바뀌게 됨 */
+
+	if (file_read(file, page->va, page_read_bytes) != (int)page_read_bytes)
+	{
+		return false;
+	}
+	memset(page->va + page_read_bytes, 0, page_zero_bytes);
+	return true;
 }
 
 /* Loads a segment starting at offset OFS in FILE at address
@@ -851,18 +870,27 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 		size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
 		/* TODO: Set up aux to pass information to the lazy_load_segment. */
-		void *aux = NULL;
+		// void *aux = NULL;
+		struct load_aux *aux = (struct load_aux *)calloc(1, sizeof(struct load_aux));
+		aux->file = file;
+		aux->ofs = ofs;
+		aux->va = upage;
+		aux->writable = writable;
+		aux->page_read_bytes = page_read_bytes;
+		aux->page_zero_bytes = page_zero_bytes;
 		if (!vm_alloc_page_with_initializer(VM_ANON, upage,
 											writable, lazy_load_segment, aux))
 			return false;
-
 		/* Advance. */
 		read_bytes -= page_read_bytes;
 		zero_bytes -= page_zero_bytes;
+		/* 기존의 load_segment에서는 한 번에 넣기 때문에 ofs을 증가할 필요가 x */
 		upage += PGSIZE;
+		ofs += page_read_bytes;
 	}
 	return true;
 }
+/* 물리메모리에 올라갈 필요한 정보들을 aux에다가 넣어줘야한다. */
 
 /* Create a PAGE of stack at the USER_STACK. Return true on success. */
 static bool
@@ -870,12 +898,23 @@ setup_stack(struct intr_frame *if_)
 {
 	bool success = false;
 	void *stack_bottom = (void *)(((uint8_t *)USER_STACK) - PGSIZE);
-
+	/* VM_MARKER_0 함으로써 스택에 쓰이는 page임을 알 수 있다. */
+	if (vm_alloc_page_with_initializer(VM_ANON | VM_MARKER_0, stack_bottom, true, NULL, NULL))
+	{
+		if (vm_claim_page(stack_bottom))
+		{
+			if_->rsp = USER_STACK;
+			success = true;
+		}
+		else
+		{
+			printf("vm_claim_page 실패\n");
+		}
+	}
 	/* TODO: Map the stack on stack_bottom and claim the page immediately.
 	 * TODO: If success, set the rsp accordingly.
 	 * TODO: You should mark the page is stack. */
 	/* TODO: Your code goes here */
-
 	return success;
 }
 #endif /* VM */

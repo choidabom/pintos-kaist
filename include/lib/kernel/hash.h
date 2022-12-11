@@ -102,7 +102,7 @@ uint64_t hash_int(int);
 
 /* Returns a hash value for page p. => 페이지 p에 대한 해시 값을 반환합니다. */
 unsigned
-page_hash(const struct hash_elem *p_, void *aux UNUSED);
+page_hash(const struct hash_elem *p_, void *aux);
 
 /* Returns true if page a precedes page b.=> 페이지 a가 페이지 b 앞에 있으면 true를 반환합니다. */
 bool page_less(const struct hash_elem *a_, const struct hash_elem *b_, void *aux);

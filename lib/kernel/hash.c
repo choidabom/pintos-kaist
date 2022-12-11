@@ -428,7 +428,7 @@ remove_elem(struct hash *h, struct hash_elem *e)
 
 /* Returns a hash value for page p. => 페이지 p에 대한 해시 값을 반환합니다. => page_hash 자체가 해시 함수이다 !! */
 unsigned
-page_hash(const struct hash_elem *p_, void *aux UNUSED)
+page_hash(const struct hash_elem *p_, void *aux)
 {
 	const struct page *p = hash_entry(p_, struct page, hash_elem);
 	return hash_bytes(&p->va, sizeof p->va);
