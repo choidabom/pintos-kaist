@@ -339,10 +339,20 @@ void check_address(void *addr)
 	// if (&addr < 0x8048000 || &addr > 0xc0000000)
 
 	// 유저 가상 공간에 존재하지만 페이지에 할당되지 않은 경우도 존재함
-	if (is_user_vaddr(addr) && pml4_get_page(thread_current()->pml4, addr) && addr != NULL)
-		return;
-	else
-		exit_handler(-1);
+	// if (is_user_vaddr(addr) && pml4_get_page(thread_current()->pml4, addr) && addr != NULL)
+	// 	return;
+	// else
+	// 	exit_handler(-1);
+	struct thread *curr = thread_current();
+	if (is_kernel_vaddr(addr))
+	{
+		return false;
+	}
+	if (spt_find_page(&curr->spt, addr) == NULL)
+	{
+		return false;
+	}
+	return true;
 }
 
 // int process_add_file(struct file *f)
